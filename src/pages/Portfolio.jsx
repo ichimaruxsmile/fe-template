@@ -1,10 +1,27 @@
-import { MOCK_PORTFOLIO, formatPrice, formatChange } from '../data/mock'
+import { useState, useEffect } from 'react'
+import { getPortfolio } from '../data/api'
+import { formatPrice, formatChange } from '../data/mock'
 
 export default function Portfolio() {
-  const totalValue = MOCK_PORTFOLIO.reduce((s, p) => s + p.amount * p.currentPrice, 0)
-  const totalCost = MOCK_PORTFOLIO.reduce((s, p) => s + p.amount * p.avgCost, 0)
-  const totalPnl = totalValue - totalCost
-  const totalPnlPct = (totalPnl / totalCost) * 100
+  const [holdings, setHoldings] = useState([])
+  const [summary, setSummary] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    getPortfolio()
+      .then(({ holdings, summary }) => {
+        setHoldings(holdings)
+        setSummary(summary)
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div className="empty">⏳ 加载中…</div>
+  if (error) return <div className="empty">❌ {error}</div>
 
   return (
     <>
@@ -14,28 +31,30 @@ export default function Portfolio() {
       </div>
 
       {/* 总览 */}
-      <div className="stats-row">
-        <div className="card stat-card">
-          <div className="stat-value">{formatPrice(totalValue)}</div>
-          <div className="stat-label">总资产估值</div>
-        </div>
-        <div className="card stat-card">
-          <div className="stat-value" style={{ color: totalPnl >= 0 ? 'var(--green)' : 'var(--red)' }}>
-            {totalPnl >= 0 ? '+' : ''}{formatPrice(Math.abs(totalPnl))}
+      {summary && (
+        <div className="stats-row">
+          <div className="card stat-card">
+            <div className="stat-value">{formatPrice(summary.totalValue)}</div>
+            <div className="stat-label">总资产估值</div>
           </div>
-          <div className="stat-label">总盈亏</div>
-        </div>
-        <div className="card stat-card">
-          <div className="stat-value" style={{ color: totalPnlPct >= 0 ? 'var(--green)' : 'var(--red)' }}>
-            {formatChange(totalPnlPct)}
+          <div className="card stat-card">
+            <div className="stat-value" style={{ color: summary.totalPnl >= 0 ? 'var(--green)' : 'var(--red)' }}>
+              {summary.totalPnl >= 0 ? '+' : ''}{formatPrice(Math.abs(summary.totalPnl))}
+            </div>
+            <div className="stat-label">总盈亏</div>
           </div>
-          <div className="stat-label">盈亏比例</div>
+          <div className="card stat-card">
+            <div className="stat-value" style={{ color: summary.totalPnlPct >= 0 ? 'var(--green)' : 'var(--red)' }}>
+              {formatChange(summary.totalPnlPct)}
+            </div>
+            <div className="stat-label">盈亏比例</div>
+          </div>
+          <div className="card stat-card">
+            <div className="stat-value">{holdings.length}</div>
+            <div className="stat-label">持仓币种</div>
+          </div>
         </div>
-        <div className="card stat-card">
-          <div className="stat-value">{MOCK_PORTFOLIO.length}</div>
-          <div className="stat-label">持仓币种</div>
-        </div>
-      </div>
+      )}
 
       {/* 资产分布占位 */}
       <div className="card" style={{ marginBottom: 20 }}>
@@ -66,27 +85,21 @@ export default function Portfolio() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_PORTFOLIO.map(p => {
-                const value = p.amount * p.currentPrice
-                const cost = p.amount * p.avgCost
-                const pnl = value - cost
-                const pnlPct = (pnl / cost) * 100
-                return (
-                  <tr key={p.coin}>
-                    <td style={{ fontWeight: 500 }}>{p.name} <span style={{ color: 'var(--text-tertiary)' }}>{p.coin}</span></td>
-                    <td className="price">{p.amount}</td>
-                    <td className="price">{formatPrice(p.currentPrice)}</td>
-                    <td className="price">{formatPrice(value)}</td>
-                    <td className="price">{formatPrice(p.avgCost)}</td>
-                    <td className={pnl >= 0 ? 'change-up price' : 'change-down price'}>
-                      {pnl >= 0 ? '+' : ''}{formatPrice(Math.abs(pnl))}
-                    </td>
-                    <td className={pnlPct >= 0 ? 'change-up' : 'change-down'}>
-                      {formatChange(pnlPct)}
-                    </td>
-                  </tr>
-                )
-              })}
+              {holdings.map(p => (
+                <tr key={p.coinId}>
+                  <td style={{ fontWeight: 500 }}>{p.name} <span style={{ color: 'var(--text-tertiary)' }}>{p.coin}</span></td>
+                  <td className="price">{p.amount}</td>
+                  <td className="price">{formatPrice(p.currentPrice)}</td>
+                  <td className="price">{formatPrice(p.value)}</td>
+                  <td className="price">{formatPrice(p.avgCost)}</td>
+                  <td className={p.pnl >= 0 ? 'change-up price' : 'change-down price'}>
+                    {p.pnl >= 0 ? '+' : ''}{formatPrice(Math.abs(p.pnl))}
+                  </td>
+                  <td className={p.pnlPct >= 0 ? 'change-up' : 'change-down'}>
+                    {formatChange(p.pnlPct)}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
