@@ -147,3 +147,13 @@ export async function getPortfolio() {
     },
   }
 }
+
+/** POST /api/portfolio */
+export async function addHolding({ coinId, amount, avgCost }) {
+  return request('/api/portfolio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ coin_id: coinId, amount, avg_cost: avgCost }),
+  })
+}
+
